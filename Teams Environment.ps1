@@ -697,32 +697,34 @@ Function Write-NetworkSiteDetails
     # Get Tenant Network Site Details
     Write-Host 'Getting Tenant Network Site Details'
     $Details = @()
-    try {$erlocations = Get-CsTenantNetworkSite -ErrorAction Stop}
+    try {$sites = Get-CsTenantNetworkSite -ErrorAction Stop}
     catch 
         {
             $msgdata = "Error getting Tenant Network Site Details."
             write-Errorlog $logfile $error[0].exception.message $msgData
             Clear-Variable msgData
         }
-    if ($erlocations.count -ne 0)
+    if ($sites.count -ge 1)
         {
-            foreach ($location in $erlocations)
+            foreach ($site in $sites)
             {
-                $networks = Get-CsTenantNetworkSubnet | Where-Object {$_.networksiteid -eq $location.NetworkSiteID}
-                foreach ($net in $networks)
-                {
-                    $detail = New-Object PSObject
-                    $detail | add-Member -MemberType NoteProperty -Name "Identity" -Value $location.Identity
-                    $detail | add-Member -MemberType NoteProperty -Name "NetworkSiteID" -Value $net.NetworkSiteID
-                    $detail | add-Member -MemberType NoteProperty -Name "Description" -Value $net.Description
-                    $detail | add-Member -MemberType NoteProperty -Name "SubnetID" -Value $net.SubnetID
-                    $detail | add-Member -MemberType NoteProperty -Name "MaskBits" -Value $net.MaskBits
-                    $detail | add-Member -MemberType NoteProperty -Name "EmergencyCallRoutingPolicy" -Value $location.EmergencyCallRoutingPolicy
-                    $detail | add-Member -MemberType NoteProperty -Name "EmergencyCallingPolicy" -Value $location.EmergencyCallingPolicy
-                    $details += $detail  
-                }
+                $detail = New-Object PSObject
+                $detail | add-Member -MemberType NoteProperty -Name "Subnets" -Value $site.Subnets
+                $detail | add-Member -MemberType NoteProperty -Name "Postalcodes" -Value $site.Postalcodes
+                $detail | add-Member -MemberType NoteProperty -Name "Identity" -Value $site.Identity
+                $detail | add-Member -MemberType NoteProperty -Name "NetworkSiteID" -Value $site.NetworkSiteID
+                $detail | add-Member -MemberType NoteProperty -Name "Description" -Value $site.Description
+                $detail | add-Member -MemberType NoteProperty -Name "NetworkRegionID" -Value $site.NetworkRegionID
+                $detail | add-Member -MemberType NoteProperty -Name "LocationPolicy" -Value $site.LocationPolicy
+                $detail | add-Member -MemberType NoteProperty -Name "EnableLocationBasedRouting" -Value $site.EnableLocationBasedRouting
+                $detail | add-Member -MemberType NoteProperty -Name "SiteAddress" -Value $site.SiteAddress
+                $detail | add-Member -MemberType NoteProperty -Name "EmergencyCallRoutingPolicy" -Value $site.EmergencyCallRoutingPolicy
+                $detail | add-Member -MemberType NoteProperty -Name "EmergencyCallingPolicy" -Value $site.EmergencyCallingPolicy
+                $detail | add-Member -MemberType NoteProperty -Name "NetworkRoamingPolicy" -Value $site.NetworkRoamingPolicy
+                $details += $detail  
             }
         }
+    
     Else {$details = "No Data to Display"}
     $tabname = "Tenant Network Site Details"
     $tabcolor = "Red"
@@ -746,7 +748,31 @@ Function Write-NetworkRegion
         }
     }
     else {$details = "No Data to Display"}
-    $tabname = "Tenant Network Region Details"
+    $tabname = "Tenant Network Region"
+    $tabcolor = "Red"
+    Write-DataToExcel $filelocation $Details $tabname $tabcolor
+}
+
+Function Write-NetworkSubnetDetails
+{   
+    Write-Host "Getting Tenant Network Subnets"
+    $Details = @()
+    $subnets = Get-CsTenantNetworkSubnet
+    if ($subnets.count -ge 1)
+    {
+        foreach ($subnet in $subnets)
+        {
+            $detail = New-Object PSObject
+            $detail | add-Member -MemberType NoteProperty -Name "Identity" -Value $subnets.Identity
+            $detail | add-Member -MemberType NoteProperty -Name "Description" -Value $subnets.Description
+            $detail | add-Member -MemberType NoteProperty -Name "NetworkSiteID" -Value $subnets.NetworkSiteID
+            $detail | add-Member -MemberType NoteProperty -Name "SubnetID" -Value $subnets.SubnetID
+            $detail | add-Member -MemberType NoteProperty -Name "MaskBits" -Value $subnets.MaskBits
+            $Details += $detail
+        }
+    }
+    else {$details = "No Data to Display"}
+    $tabname = "Tenant Network Subnet"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
 }
@@ -965,6 +991,7 @@ Function Get-TeamsEnvironment
     Write-EmergencyCallRouting
     Write-NetworkRegion
     Write-NetworkSiteDetails
+    Write-NetworkSubnetDetails
     Write-TrustedIPs
     Write-LISLocation
     Write-LISSubnets
