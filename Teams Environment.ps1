@@ -99,6 +99,10 @@ Function Write-TenantInfo
     $Green = [System.Drawing.Color]::$green 
     $excel.Workbook.Worksheets[1].TabColor = $Green  
     Close-ExcelPackage -ExcelPackage $excel
+    Clear-Variable tenatDetail
+    Clear-Variable detail
+    Clear-Variable excel
+    Clear-Variable green
 }
 Function Write-PSTNGateways
 {
@@ -140,6 +144,7 @@ Function Write-PSTNGateways
         $tabname = 'PSTN Gateways'
         $tabcolor = "Green"
         Write-DataToExcel $filelocation $details $tabname $tabcolor
+        Clear-Variable details, PSTNGWs
 }
 Function write-PSTNUsages
 {
@@ -170,6 +175,7 @@ Function write-PSTNUsages
     $tabname = 'EV PSTN Usages'
     $tabcolor = 'Green'
     Write-DataToExcel $filelocation  $details $tabname $tabcolor
+    Clear-Variable PSTNUSAGEs, details, tabname, tabcolor
 }
 Function Write-VoiceRoutes
 {
@@ -202,6 +208,7 @@ Function Write-VoiceRoutes
     $tabname = 'Voice Routes'
     $tabcolor = 'Green'
     Write-DataToExcel $filelocation  $details $tabname $tabcolor
+    Clear-Variable VRs, details, tabname, tabcolor
 }
 
 Function Write-VoiceRoutingPolicies
@@ -239,6 +246,7 @@ Function Write-VoiceRoutingPolicies
     $tabname = "Voice Routing Policies"
     $tabcolor = 'Green'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable vrps, details, tabcolor, tabname, opu
 }
 
 Function Write-DialPlans
@@ -277,6 +285,7 @@ Function Write-DialPlans
     $tabname = "Dial Plan"
     $tabcolor = "Green"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable dp, details, tabcolor, tabname
 }
 
 Function Write-TeamsMeetingsSettings
@@ -309,6 +318,7 @@ Function Write-TeamsMeetingsSettings
     $tabname = "Meeting-QOS Policies"
     $tabcolor = 'Green'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, MTGConfigs, tabcolor, tabname
 }
 
 Function Write-EVUsers
@@ -349,12 +359,49 @@ Function Write-EVUsers
             $detail | add-Member -MemberType NoteProperty -Name "Teams Meeting Policy" -Value $user.TeamsMeetingPolicy
             $detail | Add-Member -MemberType NoteProperty -Name "Audio Conferencing Policy" -Value $user.OnlineAudioConferencingRoutingPolicy
             $details += $detail
+            
         }
     }
     Else {$details = "No Data to Display"}
     $tabname = "EV Users"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable Details, tabname, tabcolor
+    # Don't clear users variable it will be used in the next function
+}
+Function write-phonenumbers
+{
+    write-host "Getting Phone Numbers"
+    if (!($users))
+        {$users =  Get-CsOnlineUser -Filter {EnterpriseVoiceEnabled -eq $true}| Where-Object {$_.lineuri -ne $null}}
+    $phonenumbers = Get-CsPhoneNumberAssignment| Sort-Object TelephoneNumber
+    $details = @()
+    if (($phonenumbers))
+        {
+            foreach ($phonenumber in $phonenumbers)
+            {
+                $number="tel:"+$phonenumber.TelephoneNumber
+                $i = $users | Where-Object {$_.lineuri -eq $number}
+                #format DID Number table   
+                $DIDdetail = New-Object PSObject
+                $DIDdetail | Add-Member NoteProperty -Name "DID" -Value $phonenumber.TelephoneNumber
+                $DIDdetail | Add-Member NoteProperty -Name "User" -Value $i.UserPrincipalName
+                $DIDdetail | Add-Member NoteProperty -Name "Numbertype" -Value $phonenumber.NumberType
+                $DIDdetail | Add-Member NoteProperty -Name "Activation state" -Value $phonenumber.ActivationState
+                $DIDdetail | Add-Member NoteProperty -Name "Partner Name" -Value $phonenumber.PSTNPartnername
+                $DIDdetail | Add-Member NoteProperty -Name "Partner ID" -Value $phonenumber.PSTNpartnerID
+                $DIDdetail | Add-Member NoteProperty -Name "City" -Value $phonenumber.City
+                $DIDdetail | Add-Member NoteProperty -Name "CivicAddressId" -Value $phonenumber.CivicAddressId
+                $DIDdetail | Add-Member NoteProperty -Name "CountryCode" -Value $phonenumber.IsoCountryCode
+                $DIDdetail | Add-Member NoteProperty -Name "LocationId " -Value $phonenumber.LocationId 
+                $details += $DIDdetail
+            } 
+        }
+    Else {$details = "No Data to Display"}
+    $tabname = "Phone Numbers"
+    $tabcolor = 'Blue'
+    Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabcolor, tabname, users, phonenumbers
 }
 
 Function Write-AutoAttendants
@@ -409,6 +456,7 @@ Function Write-AutoAttendants
     $tabname = "Auto Attendant"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabcolor, tabname, aas
 }
 
 Function Write-CallQueues
@@ -502,6 +550,7 @@ Function Write-CallQueues
     $tabname = "Call Queue"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor, CQs
 }
 Function Write-ResourceAccounts
 {
@@ -530,6 +579,7 @@ Function Write-ResourceAccounts
     $tabname = "Res Account Details"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor, ras
 }
 Function Write-CallerIDPolicy
 {
@@ -557,6 +607,7 @@ Function Write-CallerIDPolicy
     $tabname = "Caller ID Policies"
     $tabcolor = "Blue"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor, CIDPs
 }
 Function Write-CallingPolicies
 {
@@ -598,6 +649,7 @@ Function Write-CallingPolicies
     $tabname = "Calling Policies"
     $tabcolor = "Blue"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor, CPs
 }
 Function Write-AudioConferencingPolicy
 {
@@ -622,6 +674,7 @@ Function Write-AudioConferencingPolicy
     $tabname = "Audio Conferencing Policies"
     $tabcolor = "Blue"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,AudConfs
 }
 
 Function Write-EmergencyCallingPolicy
@@ -654,6 +707,7 @@ Function Write-EmergencyCallingPolicy
     $tabname = "Emergency Calling Policies"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,ercallpolicies
 }
 
 Function Write-EmergencyCallRouting
@@ -690,6 +744,7 @@ Function Write-EmergencyCallRouting
     $tabname = "Emergency Call Routing Policies"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,ecrps
 }
 
 Function Write-NetworkSiteDetails
@@ -729,6 +784,7 @@ Function Write-NetworkSiteDetails
     $tabname = "Tenant Network Site Details"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,sites
 }
 Function Write-NetworkRegion
 {   
@@ -751,6 +807,7 @@ Function Write-NetworkRegion
     $tabname = "Tenant Network Region"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,regions
 }
 
 Function Write-NetworkSubnetDetails
@@ -775,6 +832,7 @@ Function Write-NetworkSubnetDetails
     $tabname = "Tenant Network Subnet"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,subnets
 }
 
 Function Write-TrustedIPs
@@ -806,6 +864,7 @@ Function Write-TrustedIPs
     $tabname = "Trusted IP address"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,TrustedIPs
 }
 
 Function Write-LISLocation
@@ -843,6 +902,7 @@ Function Write-LISLocation
     $tabname = "LIS Location"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,locations
 }
 
 Function Write-LISSubnets
@@ -874,6 +934,7 @@ Function Write-LISSubnets
     $tabname = "LIS Network"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,subnets
 }
 
 Function Write-BSSIDs
@@ -905,6 +966,7 @@ Function Write-BSSIDs
     $tabname = "LIS WAP"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,WAPs
 }
 
 Function Write-LISSwitch
@@ -931,6 +993,7 @@ Function Write-LISSwitch
     $tabname = "LIS Switch"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabname, tabcolor,Switches
 }
 
 Function Write-LISPort
@@ -963,11 +1026,14 @@ Function Write-LISPort
      $tabname = "LIS Port"
      $tabcolor = "Red"
      Write-DataToExcel $filelocation $Details $tabname $tabcolor
+     Clear-Variable details, tabname, tabcolor,Ports
 }
 
 Function Get-TeamsEnvironment
 {
-    param ($filelocation, $logname)
+   
+    param ($filelocation, $logname )
+    $starttime = get-date
     $IncEmployees = Read-host "Include Enterprise Voice Users (y/n)"
     Clear-Host
     Write-Host "Running"
@@ -982,6 +1048,7 @@ Function Get-TeamsEnvironment
         {Write-EVUsers}
     Else 
         {Write-Host "Skipping Enterprise Voice Users" }
+    write-phonenumbers
     Write-AutoAttendants 
     Write-CallQueues
     Write-ResourceAccounts
@@ -999,9 +1066,9 @@ Function Get-TeamsEnvironment
     Write-BSSIDs
     Write-LISSwitch
     Write-LISPort  
-    Write-Host "File stored in:" $filelocation
-}
-
+    $endtime = get-date
+    write-host (new-timespan -Start $starttime -End $endtime).TotalMinutes   "Minutes"
+ }
 Clear-Host
 Write-Host "This is will create an Excel Spreadsheet."
 $dirlocation = Read-Host "Enter location to store report (i.e. c:\scriptout)"
@@ -1032,7 +1099,7 @@ if ($XLmodule )
                 $tenant = $connected.displayname.Replace(" ","-")
                 $filelocation = $directory+"\"+$tenant+"-TeamsEnv-"+$filedate+".xlsx"
                 $logfile = $directory+"\"+$tenant+"-TeamsEnv-ErrorLog-"+$filedate+".csv"
-                Get-TeamsEnvironment $filelocation $logfile
+                Get-TeamsEnvironment $filelocation $logfile 
             }
         Else {Write-Host "Teams module isn't loaded.  Please load Teams Module (connect-microsoftteams)"  }
     }
