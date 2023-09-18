@@ -366,14 +366,13 @@ Function Write-EVUsers
     $tabname = "EV Users"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
-    Clear-Variable Details, tabname, tabcolor
+    Clear-Variable Details, tabname, tabcolor, users
     # Don't clear users variable it will be used in the next function
 }
 Function write-phonenumbers
 {
     write-host "Getting Phone Numbers"
-    if (!($users))
-        {$users =  Get-CsOnlineUser -Filter {EnterpriseVoiceEnabled -eq $true}| Where-Object {$_.lineuri -ne $null}}
+    $users =  Get-CsOnlineUser -Filter {EnterpriseVoiceEnabled -eq $true}| Where-Object {$_.lineuri -ne $null}
     $phonenumbers = Get-CsPhoneNumberAssignment| Sort-Object TelephoneNumber
     $details = @()
     if (($phonenumbers))
