@@ -2,7 +2,7 @@ This script will pull voice configurations from Microsoft Teams into an Excel wo
 
 There are two dependencies.
 
-- You need to be connected to your teams tenant (connect-microsoftteams) using a current version of the Microsoft Teams Powershell module 5.6.0. I am currently evaluating new versions of the powershell module.  I know it works with 5.3.  5.6 was recently released. 
+- You need to be connected to your teams tenant (connect-microsoftteams) using a current version of the Microsoft Teams Powershell module 5.6.0. I am currently evaluating new versions of the powershell module.  I know it works with 5.3.  5.7.1 was recently released. 
 - ImportExcel PowerShell module by Doug Finke (https://github.com/dfinke/ImportExcel) Current version - 7.8.6.  You will need to install the ImportExcel module by running <b>Install-Module -Name ImportExcel</b>.
 
 The script will prompt you for a location to store the file. A directory will be created in that folder named "TeamsEnvironmentReports". The filename is automatically generated in the format of tenant ID-TeamsEnv-DateTimeStamp.xlsx (i.e. Contoso-TeamsEnv-04-10-2023.08.36.01.xlsx)
