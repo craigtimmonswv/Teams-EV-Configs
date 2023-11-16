@@ -52,7 +52,13 @@ A few changes have been made:
        will be empty unless the user is using calling plans, operator connect, DRaaS, or doing something with Video Interop.
     5. Added Network Region Information
     6. Added coloring of tabs based upon the type of information (Green = Infrastructre, Blue = User Details, Red = Emergency LIS)
-    7. Created functions for each tab being created.   
+    7. Created functions for each tab being created. 
+    
+V3.3
+Added Teams Audio Conferencing Policy on the EV Users Tab
+Added licenses capabilities to the Phone numbers tab. 
+Added tab for dial-in conferencing numbers that are not shared.  These should be numbers that are only used with in your tenant.  
+
 #>
 $date = get-date -Format "MM/dd/yyyy HH:mm"
 $tabFreeze = "PSTN Gateways","EV Users","Voice Routes","Call Queue","LIS Location","Calling Policies","Auto Attendant"
@@ -248,6 +254,28 @@ Function Write-VoiceRoutingPolicies
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
     Clear-Variable vrps, details, tabcolor, tabname, opu
 }
+Function write-OnlineConferencingRouting
+{
+    Write-Host 'Getting Online Audio Conference Routing Policies' 
+    $oacrps = Get-CsOnlineAudioConferencingRoutingPolicy
+    $details = @()
+
+    foreach ($oacrp in $oacrps)
+     {
+        [string]$PSTNU = $oacrp.OnlinePstnUsages
+        $detail = New-Object PSObject
+        $detail | add-Member -MemberType NoteProperty -Name "Identity" -Value $oacrp.identity
+        $detail | add-Member -MemberType NoteProperty -Name "OnlinePstnUsages" -Value $PSTNU.Replace(" ",", ")
+        $detail | add-Member -MemberType NoteProperty -Name "Description" -Value $oacrp.Description
+        $detail | add-Member -MemberType NoteProperty -Name "RouteType" -Value $oacrp.RouteType
+        $details += $detail
+    }
+
+    $tabname = "Online Audio Conf. Routing Policy"
+    $tabcolor = 'Green'
+    Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabcolor, tabname, oacrps
+}
 
 Function Write-DialPlans
 {
@@ -357,9 +385,10 @@ Function Write-EVUsers
             #$detail | add-Member -MemberType NoteProperty -Name "Teams Carrier Emergency Call Routing Policy" -Value $user.TeamsCarrierEmergencyCallRoutingPolicy
             $detail | add-Member -MemberType NoteProperty -Name "Teams Calling Policy" -Value $user.TeamsCallingPolicy
             $detail | add-Member -MemberType NoteProperty -Name "Teams Meeting Policy" -Value $user.TeamsMeetingPolicy
-            $detail | Add-Member -MemberType NoteProperty -Name "Audio Conferencing Policy" -Value $user.OnlineAudioConferencingRoutingPolicy
+            $detail | Add-Member -MemberType NoteProperty -Name "Online Audio Conferencing Policy" -Value $user.OnlineAudioConferencingRoutingPolicy
+            $detail | Add-Member -MemberType NoteProperty -Name "Teams Audio Conferencing Policy" -Value $user.TeamsAudioConferencingPolicy
+            $detail | Add-Member -MemberType NoteProperty -Name "TeamsVoiceApplicationsPolicy" -Value $user.TeamsVoiceApplicationsPolicy
             $details += $detail
-            
         }
     }
     Else {$details = "No Data to Display"}
@@ -381,17 +410,20 @@ Function write-phonenumbers
             {
                 $number="tel:"+$phonenumber.TelephoneNumber
                 $i = $users | Where-Object {$_.lineuri -eq $number}
+                [string]$license = $i.featuretypes
+                [string]$capability = $phonenumber.Capability
                 #format DID Number table   
                 $DIDdetail = New-Object PSObject
                 $DIDdetail | Add-Member NoteProperty -Name "DID" -Value $phonenumber.TelephoneNumber
                 $DIDdetail | Add-Member NoteProperty -Name "User" -Value $i.UserPrincipalName
+                $DIDdetail | Add-Member -MemberType NoteProperty -Name "Licenses" -Value $license.Replace(" ",", ")
+                $DIDdetail | Add-Member -MemberType NoteProperty -Name "Capability" -Value $capability.Replace(" ",", ")
                 $DIDdetail | Add-Member NoteProperty -Name "Numbertype" -Value $phonenumber.NumberType
                 $DIDdetail | Add-Member NoteProperty -Name "Activation state" -Value $phonenumber.ActivationState
                 $DIDdetail | Add-Member NoteProperty -Name "Partner Name" -Value $phonenumber.PSTNPartnername
                 $DIDdetail | Add-Member NoteProperty -Name "Partner ID" -Value $phonenumber.PSTNpartnerID
                 $DIDdetail | Add-Member NoteProperty -Name "City" -Value $phonenumber.City
                 $DIDdetail | Add-Member NoteProperty -Name "CivicAddressId" -Value $phonenumber.CivicAddressId
-                $DIDdetail | Add-Member NoteProperty -Name "CountryCode" -Value $phonenumber.IsoCountryCode
                 $DIDdetail | Add-Member NoteProperty -Name "LocationId " -Value $phonenumber.LocationId 
                 $details += $DIDdetail
             } 
@@ -400,7 +432,37 @@ Function write-phonenumbers
     $tabname = "Phone Numbers"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
-    Clear-Variable details, tabcolor, tabname, users, phonenumbers
+    try {Clear-Variable details, tabcolor, tabname, users, phonenumbers -ErrorAction SilentlyContinue}
+    catch {}
+}
+
+Function write-servicenumbers
+{
+    Write-Host "Gettting Conference numbers"
+    $serviceNumbers = Get-CsOnlineDialInConferencingServiceNumber| where {$_.isshared -eq $false}
+    if ($serviceNumbers)
+    {
+        $details =@()
+        Foreach ($servicenumber in $serviceNumbers)
+        {
+            [string] $secondarylanguages = $servicenumber.SecondaryLanguages
+            $detail = New-Object PSObject
+            $detail | Add-Member NoteProperty -Name "Number" -Value $servicenumber.number
+            $detail | Add-Member NoteProperty -Name "City" -Value $servicenumber.city
+            $detail | Add-Member NoteProperty -Name "PrimaryLanguage" -Value $servicenumber.PrimaryLanguage
+            $detail | Add-Member NoteProperty -Name "SecondaryLanguages" -Value $secondarylanguages.Replace(" ",", ")
+            $detail | Add-Member NoteProperty -Name "BridgeId" -Value $servicenumber.BridgeId
+            $detail | Add-Member NoteProperty -Name "IsShared" -Value $servicenumber.IsShared
+            $detail | Add-Member NoteProperty -Name "Type" -Value $servicenumber.Type
+            $details += $detail
+        }
+    }
+    else {$details = "No Data to Display"}
+    $tabname = "Dial in Conferencing Numbers"
+    $tabcolor = 'Blue'
+    Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    try {Clear-Variable details, tabcolor, tabname, servicenumbers -ErrorAction SilentlyContinue}
+    catch {}
 }
 
 Function Write-AutoAttendants
@@ -421,6 +483,7 @@ Function Write-AutoAttendants
                 Clear-Variable msgData
             }
         }
+
         try { $operatorID = ((Get-CsAutoAttendant -NameFilter $aa.Name | Select-Object operator).operator).id }
         catch
             {
@@ -440,9 +503,21 @@ Function Write-AutoAttendants
                         Clear-Variable msgData
                     }
                 }
+                foreach ($a in $AA.AuthorizedUsers.guid)
+                {
+                    try {$agent=(get-csonlineuser -Identity $a -erroraction SilentlyContinue| Select-Object UserPrincipalName).UserPrincipalName + ", "}
+                    Catch 
+                    {
+                        $msgdata = "Error getting authorized users."
+                        write-Errorlog $logfile $error[0].exception.message $msgData
+                        Clear-Variable msgData
+                    }
+                    $agents +=$agent
+                }
             $detail = New-Object PSObject
             $detail | Add-Member NoteProperty -Name "AAName" -Value $aa.name
             $detail | Add-Member NoteProperty -Name "Identity" -Value $aa.identity
+            $detail | Add-Member NoteProperty -Name "AuthorizedUsers" -Value $agents
             $detail | Add-Member NoteProperty -Name "Language" -Value $aa.LanguageId
             $detail | Add-Member NoteProperty -Name "TimeZone" -Value $aa.timezoneid
             $detail | Add-Member NoteProperty -Name "Operator" -Value $Operator
@@ -450,19 +525,68 @@ Function Write-AutoAttendants
             $detail | Add-Member NoteProperty -Name "ResourceAccount" -Value $ResouceAct.UserPrincipalName
             $detail | Add-Member NoteProperty -Name "Phone Number" -Value $ResouceAct.PhoneNumber
             $details += $detail
-            Clear-Variable detail
+            try {Clear-Variable detail, agents, Operator, ResouceAct -ErrorAction SilentlyContinue}
+            catch{}
     }
     $tabname = "Auto Attendant"
     $tabcolor = 'Blue'
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
     Clear-Variable details, tabcolor, tabname, aas
 }
+function Write-VoiceApplicationPolicy
+{
+   Write-Host "Getting Voice Application Policies" 
+   $VAPs= Get-CsTeamsVoiceApplicationsPolicy
+   if ($VAPs)
+   {
+        $details = @()
+        foreach ($VAP in $VAPs)
+        {
+            $detail = New-Object PSObject
+            $detail | Add-Member NoteProperty -Name "Identity" -Value $vap.identity
+            $detail | Add-Member NoteProperty -Name "Description" -Value $vap.Description
+            $detail | Add-Member NoteProperty -Name "AA Business Hours Greeting Change" -Value $vap.AllowAutoAttendantBusinessHoursGreetingChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantAfterHoursGreetingChange" -Value $vap.AllowAutoAttendantAfterHoursGreetingChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantHolidayGreetingChange" -Value $vap.AllowAutoAttendantHolidayGreetingChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantBusinessHoursChange" -Value $vap.AllowAutoAttendantBusinessHoursChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantTimeZoneChange" -Value $vap.AllowAutoAttendantTimeZoneChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantLanguageChange" -Value $vap.AllowAutoAttendantLanguageChange
+            $detail | Add-Member NoteProperty -Name "AllowAutoAttendantHolidaysChange" -Value $vap.AllowAutoAttendantHolidaysChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueWelcomeGreetingChange" -Value $vap.AllowCallQueueWelcomeGreetingChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueMusicOnHoldChange" -Value $vap.AllowCallQueueMusicOnHoldChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueOverflowSharedVoicemailGreetingChange" -Value $vap.AllowCallQueueOverflowSharedVoicemailGreetingChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueOptOutChange" -Value $vap.AllowCallQueueOptOutChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueMembershipChange" -Value $vap.AllowCallQueueMembershipChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueRoutingMethodChange" -Value $vap.AllowCallQueueRoutingMethodChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueuePresenceBasedRoutingChange" -Value $vap.AllowCallQueuePresenceBasedRoutingChange
+            $detail | Add-Member NoteProperty -Name "CallQueueAgentMonitorMode" -Value $vap.CallQueueAgentMonitorMode
+            $detail | Add-Member NoteProperty -Name "CallQueueAgentMonitorNotificationMode" -Value $vap.CallQueueAgentMonitorNotificationMode
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueLanguageChange" -Value $vap.AllowCallQueueLanguageChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueOverflowRoutingChange" -Value $vap.AllowCallQueueOverflowRoutingChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueTimeoutRoutingChange" -Value $vap.AllowCallQueueTimeoutRoutingChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueNoAgentsRoutingChange" -Value $vap.AllowCallQueueNoAgentsRoutingChange
+            $detail | Add-Member NoteProperty -Name "AllowCallQueueConferenceModeChange" -Value $vap.AllowCallQueueConferenceModeChange
+            $detail | Add-Member NoteProperty -Name "RealTimeAutoAttendantMetricsPermission" -Value $vap.RealTimeAutoAttendantMetricsPermission
+            $detail | Add-Member NoteProperty -Name "RealTimeAgentMetricsPermission" -Value $vap.RealTimeAgentMetricsPermission
+            $detail | Add-Member NoteProperty -Name "HistoricalAutoAttendantMetricsPermission" -Value $vap.HistoricalAutoAttendantMetricsPermission
+            $detail | Add-Member NoteProperty -Name "HistoricalCallQueueMetricsPermission" -Value $vap.HistoricalCallQueueMetricsPermission
+            $detail | Add-Member NoteProperty -Name "HistoricalAgentMetricsPermission" -Value $vap.HistoricalAgentMetricsPermission
+            $details += $detail
+        }
+   }
+   Else {$details = "No Data to Display"}
+   $tabname = "Voice App Policy"
+    $tabcolor = 'Blue'
+    Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    Clear-Variable details, tabcolor, tabname, VAPs
+    
+}
 
 Function Write-CallQueues
 {
     # Get Call Queues Details
     Write-Host "Getting Call Queue Details"
-    $CQs = Get-CsCallQueue -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+    $CQs = Get-CsCallQueue -WarningAction SilentlyContinue -ErrorAction SilentlyContinue 
     if ($CQs.count -ne 0)
     {
         $Details = @()
@@ -471,6 +595,19 @@ Function Write-CallQueues
             $detail = New-Object PSObject
             $detail | Add-Member NoteProperty -Name "CQName" -Value $CQ.name
             $detail | Add-Member NoteProperty -Name "Identity" -Value $CQ.identity
+            foreach ($authuser in $CQ.AuthorizedUsers.guid)
+                {
+                    try {$cqauthorizeduser=(get-csonlineuser -Identity $a -erroraction SilentlyContinue| Select-Object UserPrincipalName).UserPrincipalName + ","}
+                    Catch 
+
+                    {
+                        $msgdata = "Error getting CQ Authorized Users."
+                        write-Errorlog $logfile $error[0].exception.message $msgData
+                        Clear-Variable msgData
+                    }
+                    $cqauthorizedusers +=$cqauthorizeduser
+                }
+            $detail | Add-Member NoteProperty -Name "AuthorizedUsers" -Value $cqauthorizedusers
             $detail | Add-Member NoteProperty -Name "RoutingMethod" -Value $CQ.RoutingMethod
             $detail | Add-Member NoteProperty -Name "AllowOptOut" -Value $CQ.AllowOptOut                
             $detail | Add-Member NoteProperty -Name "ConferenceMode" -Value $CQ.ConferenceMode
@@ -542,7 +679,10 @@ Function Write-CallQueues
             try {Clear-Variable TOATarget -ErrorAction SilentlyContinue}
             Catch{}
             try {Clear-Variable OFATarget -ErrorAction SilentlyContinue} 
+            Catch{}  
+            try {Clear-Variable cqauthorizedusers -ErrorAction SilentlyContinue} 
             Catch{}      
+            
         }
     }
     Else {$details = "No Data to Display"}
@@ -561,9 +701,12 @@ Function Write-ResourceAccounts
         $details = @()
         foreach ($ra in $RAs)
         {
+            $ResourceUser = get-csonlineuser -Identity $ra.UserPrincipalName
+            [string]$license = $ResourceUser.featuretypes
             $detail = New-Object PSObject
             $detail | Add-Member NoteProperty -Name "DisplayName" -Value $ra.DisplayName
             $detail | Add-Member NoteProperty -Name "UserPrincipalName" -Value $ra.UserPrincipalName
+            $detail | Add-Member NoteProperty -Name "License" -Value $license.Replace(" ",", ")
             $detail | Add-Member NoteProperty -Name "ObjectId" -Value $ra.ObjectId
             $detail | Add-Member NoteProperty -Name "PhoneNumber" -Value $ra.PhoneNumber
             $detail | Add-Member NoteProperty -Name "ApplicationId" -Value $ra.ApplicationId
@@ -783,6 +926,7 @@ Function Write-NetworkSiteDetails
     $tabname = "Tenant Network Site Details"
     $tabcolor = "Red"
     Write-DataToExcel $filelocation $Details $tabname $tabcolor
+    
     Clear-Variable details, tabname, tabcolor,sites
 }
 Function Write-NetworkRegion
@@ -1041,6 +1185,7 @@ Function Get-TeamsEnvironment
     write-PSTNUsages
     Write-VoiceRoutes
     Write-VoiceRoutingPolicies
+    write-OnlineConferencingRouting
     Write-DialPlans
     Write-TeamsMeetingsSettings
     If ($IncEmployees -eq "y" -or $IncEmployees -eq "Y")
@@ -1048,7 +1193,9 @@ Function Get-TeamsEnvironment
     Else 
         {Write-Host "Skipping Enterprise Voice Users" }
     write-phonenumbers
+    write-servicenumbers
     Write-AutoAttendants 
+    Write-VoiceApplicationPolicy
     Write-CallQueues
     Write-ResourceAccounts
     Write-CallerIDPolicy
