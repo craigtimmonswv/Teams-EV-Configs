@@ -23,3 +23,9 @@ V3.3
 Added Teams Audio Conferencing Policy on the EV Users Tab
 Added licenses capabilities to the Phone numbers tab. 
 Added tab for dial-in conferencing numbers that are not shared.  These should be numbers that are only used with in your tenant.  
+
+v5.01
+Adds Auto-attendant menu options
+Adds Auto-attendant business hours greeting
+Stores file in OneDrive in a folder called TeamsEnvironmentReports
+Adds pulling of phone number tags to the phone numbers tab.  
